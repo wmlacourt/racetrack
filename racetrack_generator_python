@@ -1,0 +1,154 @@
+import math
+import random
+import pylab
+
+class Turn(object):
+    """
+    A Turn is an arc representing the centreline of a single turn of a
+    Track.
+    """
+    
+    def __init__(self, centre_x, centre_y, radius):
+        self.centre_x = centre_x
+        self.centre_y = centre_y
+        self.radius = radius
+        
+    def getX(self):
+        return self.centre_x
+        
+    def getY(self):
+        return self.centre_y
+        
+    def getRadius(self):
+        return self.radius
+        
+    def __str__(self):
+        return "(%0.2f, %0.2f, %0.2f)" % (self.centre_x, self.centre_y, self.radius)
+
+class SimpleTrack(object):
+    """
+    A Simple Track represents the centreline of a racetrack.
+    """
+    
+    def __init__(self,track_radius,numturns):
+        """
+        Initializes a Simple Track using a number of straights connected by
+        arcs. Input is overall track radius (metres) and number of turns.
+        
+        turns:      list of turns that define the track
+        theta:      rotational angle from centre of track to centre of turn
+        distance:   radial distance from centre of track to centre of turn
+        """
+        
+        #Establishes track circumference
+        track_circumference_x = []
+        track_circumference_y = []
+        for i in range(1000):
+            theta = 2*math.pi * (float(i) / 1000.0)
+            track_circumference_x.append(track_radius * math.cos(theta))
+            track_circumference_y.append(track_radius * math.sin(theta))
+        
+        #Establishes track turn circles
+        turns = []
+        turns_centre_x = []
+        turns_centre_y = []
+        turns_radius = []
+        turn_circumference_x = []
+        turn_circumference_y = []
+        turns_circumferences_x = []
+        turns_circumferences_y = []
+
+        for num in range(numturns):
+            turns_overlap = True
+            while turns_overlap == True:
+                #Establish turn centre point in relation to track circumference
+                theta = 2*math.pi * (float(num)+random.random()) / float(numturns)
+                distance = random.gauss(track_radius, float(track_radius)/5.0)
+                turn_centre_x = distance * math.cos(theta)
+                turn_centre_y = distance * math.sin(theta)
+           
+                #Establish turn radius
+                turn_radius = (5.0/float(numturns))*random.uniform(0.05,1.0)*float(track_radius)
+                            
+                #Avoid turn circumference overlap
+                distance_between_turns = []
+                if num == 0:
+                    turns_overlap = False
+                else:
+                    for i in range(len(turns)):
+                        distance_between_centres = math.sqrt((turns_centre_x[i]-turn_centre_x)**2+(turns_centre_y[i]-turn_centre_y)**2)
+                        distance_between_turns.append(distance_between_centres - (turn_radius+turns_radius[i]))
+                    if any(distance < 0 for distance in distance_between_turns):
+                        turns_overlap = True
+                    else:
+                        turns_overlap = False
+                             
+            #Establish turn circumference points
+            for i in range(int(turn_radius)):
+                theta = 2*math.pi * (float(i) / turn_radius)
+                turn_circumference_x.append((turn_radius * math.cos(theta))+turn_centre_x)
+                turn_circumference_y.append((turn_radius * math.sin(theta))+turn_centre_y)
+            
+            turns_centre_x.append(turn_centre_x)
+            turns_centre_y.append(turn_centre_y)
+            turns_radius.append(turn_radius)
+            turns_circumferences_x.append(turn_circumference_x)
+            turns_circumferences_y.append(turn_circumference_y)
+            #print turns_circumferences_x
+            
+            #Adds turn to turns list
+            turns.append(Turn(turn_centre_x, turn_centre_y, turn_radius))
+
+        #Add straights
+        
+        #Add external tangents
+        r1 = turns[0].getRadius()
+        r2 = turns[1].getRadius()
+        if r1 > r2:
+            c1 = (turns[1].getX(),turns[1].getY())
+            c2 = (turns[0].getX(),turns[0].getY())
+            r1 = turns[1].getRadius()
+            r2 = turns[0].getRadius()
+        else:
+            c1 = (turns[0].getX(),turns[0].getY())
+            c2 = (turns[1].getX(),turns[1].getY())
+        D = math.sqrt((c1[0]-c2[0])**2+(c1[1]-c2[1])**2)
+        print "Distance between centres = "+str(D)
+        d = r1*D/(r2-r1)
+        print "Distance from c1 to external homothetic centre = "+str(d)
+        theta = math.asin((c1[1]-c2[1])/D)
+        print theta
+        print theta/math.pi*180
+        if c1[0] > c2[0]:
+            P1 = (c1[0]+d*math.cos(theta),c1[1]+d*math.sin(theta))
+        else:
+            P1 = (c1[0]-d*math.cos(theta),c1[1]+d*math.sin(theta))
+        print P1
+        
+                        
+        #Plot everything
+        font = {'family' : 'normal', 'size' : 24}
+        pylab.rc('font',**font)
+        pylab.plot(track_circumference_x,track_circumference_y,'r-')
+        pylab.plot(turns_centre_x,turns_centre_y,'bo')
+        track_min_dimension = 0
+        for i in range(len(turns_circumferences_x)):
+            pylab.plot(turns_circumferences_x[i],turns_circumferences_y[i],'bo')
+            min_dimension = min(min(turns_circumferences_x[i]),min(turns_circumferences_y[i]),-(max(turns_circumferences_x[i])),-(max(turns_circumferences_y[i]))) 
+            if min_dimension < track_min_dimension:
+                track_min_dimension = min_dimension
+        pylab.plot(P1[0],P1[1],'ro',markersize=20)
+        for i in range(len(turns_centre_x)):
+            pylab.annotate(str(i),(turns_centre_x[i],turns_centre_y[i]))    
+        #pylab.xlim(track_min_dimension,-track_min_dimension)
+        #pylab.ylim(track_min_dimension,-track_min_dimension)
+        
+        self.radius = track_radius
+        self.numturns = numturns
+        self.turns = turns
+        
+    def getRadius(self):
+        return self.track_radius
+        
+    def getTurns(self):
+        return self.turns
